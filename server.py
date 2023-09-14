@@ -9,6 +9,6 @@ app=Flask(__name__)
 
 @app.route('/healthcheck')
 def heath_check():
-   return {"print":["200", "Hello World"]}
+   return {"status": 200, "print": "Hello World!"}
 if __name__ == "__main__":
    app.run(debug=False)
