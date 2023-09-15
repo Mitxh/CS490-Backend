@@ -9,12 +9,9 @@ CORS(app)
 # health.add_check(test)
 # app.add_url_rule('/healthcheck', 'healthcheck', view_func=lamda: health.run())
 
-@app.route('/healthcheck')
-@crossdomain(origin='*')     
+@app.route('/healthcheck')    
 def heath_check():
-   return {status: 200, print: "Hello World!"}
-
-
+   return jsonify(status=200, print="Hello World!")
 
 if __name__ == "__main__":
-   app.run(debug=False)
+   app.run(debug=True)
