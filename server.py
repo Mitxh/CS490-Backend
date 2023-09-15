@@ -1,6 +1,8 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 # from healthcheck import HealthCheck
 app=Flask(__name__)
+CORS(app)
 # health=HealthCheck()
 # def test():
 #    return True, "Hello World"
