@@ -11,7 +11,7 @@ CORS(app)
 
 @app.route('/healthcheck')    
 def heath_check():
-   return jsonify(status=200, print="Hello World!")
+   return jsonify(status=200, print="Hello World")
 
 if __name__ == "__main__":
    app.run(debug=True)
