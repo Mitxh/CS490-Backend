@@ -34,6 +34,19 @@ def actor_list():
     results[i][2] = results[i][2].title()
   return jsonify(results)
 
+@app.route('/actors_movies')
+def movies_of_actors():
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = 'SELECT film.film_id, film_actor.actor_id AS actor_id, film.title, COUNT(rental.rental_id) AS count FROM film JOIN inventory ON film.film_id = inventory.film_id JOIN rental ON inventory.inventory_id = rental.inventory_id JOIN film_actor ON film.film_id = film_actor.film_id GROUP BY film.film_id, film_actor.actor_id ORDER BY film_actor.actor_id ASC, count DESC;'
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+  results = [list(row) for row in results]
+  for i in range(len(results)):
+    results[i][2] = results[i][2].title()
+  return jsonify(results)
+
 if __name__ == "__main__":
   app.run(debug=True)
-  #test
