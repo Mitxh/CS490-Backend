@@ -57,7 +57,7 @@ def customer_search():
   if search_term:
     query = f"SELECT customer_id, first_name, last_name FROM customer WHERE first_name LIKE '%{search_term}%' OR last_name LIKE '%{search_term}%' OR customer_id LIKE '%{search_term}%';"
   else:
-    query = 'SELECT customer.customer_id, customer.first_name, customer.last_name FROM customer WHERE customer.active=1;'
+    query = 'SELECT customer.customer_id, customer.first_name, customer.last_name FROM customer WHERE customer.active=1 ORDER BY customer.last_name;'
   cursor.execute(query)
   results = cursor.fetchall()
   cursor.close()
@@ -76,6 +76,7 @@ def add_customer():
   email = customer['email']
   address_1 = customer['address_1']
   address_2 = customer['address_2']
+  city = customer['city']
   district = customer['district']
   postal_code = customer['postal_code']
   phone = customer['phone']
@@ -93,7 +94,7 @@ def add_customer():
   cursor.execute(query)
   lastAddressID = cursor.fetchall()[0][0]
 
-  query = f"INSERT INTO city VALUES ('{lastCityID+1}', '{district}', 103, NOW());"
+  query = f"INSERT INTO city VALUES ('{lastCityID+1}', '{city}', 103, NOW());"
   cursor.execute(query)
   query = f"INSERT INTO address VALUES ('{lastAddressID+1}', '{address_1}', '{address_2}', '{district}', '{lastCityID+1}', '{postal_code}', '{phone}', ST_GeomFromText('POINT(128.0449753 46.9804391)'), NOW());"
   cursor.execute(query)
@@ -112,6 +113,7 @@ def add_customer():
       'email': email,
       'address_1': address_1,
       'address_2': address_2,
+      'city': city,
       'district': district,
       'postal_code': postal_code,
       'phone': phone,
@@ -120,6 +122,157 @@ def add_customer():
       'address_id': lastAddressID
     }
   })
+
+@app.route('/edit_find_customer')
+def edit_find_customer():
+  customer_id = request.args.get('customerID', '')
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = f"SELECT customer.customer_id, customer.first_name, customer.last_name, customer.email, address.address, address.address2, city.city, address.district, address.postal_code, address.phone FROM customer JOIN address ON address.address_id=customer.address_id JOIN city ON city.city_id=address.city_id WHERE customer_id={customer_id};"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+
+  first_name = results[0][1]
+  last_name = results[0][2]
+  email = results[0][3]
+  address_1 = results[0][4]
+  address_2 = results[0][5]
+  city = results[0][6]
+  district = results[0][7]
+  postal_code = results[0][8]
+  phone = results[0][9]
+  customer_id = results[0][0]
+
+  return jsonify({
+    'status': "User Found",
+    'customer':{
+      'first_name': first_name,
+      'last_name': last_name,
+      'email': email,
+      'address_1': address_1,
+      'address_2': address_2,
+      'city': city,
+      'district': district,
+      'postal_code': postal_code,
+      'phone': phone,
+      'customer_id': customer_id
+    }
+  })
+
+@app.route('/edit_customer', methods=['POST'])
+def edit_customer():
+  customer = request.json
+  first_name = customer['first_name']
+  last_name = customer['last_name']
+  email = customer['email']
+  address_1 = customer['address_1']
+  address_2 = customer['address_2']
+  city = customer['city']
+  district = customer['district']
+  postal_code = customer['postal_code']
+  phone = customer['phone']
+  customer_id = customer['customer_id']
+  returnString = ""
+
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = f"SELECT customer.customer_id, customer.first_name, customer.last_name, customer.email, address.address, address.address2, city.city, address.district, address.postal_code, address.phone FROM customer JOIN address ON address.address_id=customer.address_id JOIN city ON city.city_id=address.city_id WHERE customer_id={customer_id};"
+  cursor.execute(query)
+  results = cursor.fetchall()
+
+  if(first_name != results[0][1]):
+    query = f"UPDATE customer SET first_name='{first_name}' WHERE customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString += "First Name"
+  if(last_name != results[0][2]):
+    query = f"UPDATE customer SET last_name='{last_name}' WHERE customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "Last Name"
+  if(email != results[0][3]):
+    query = f"UPDATE customer SET email='{email}' WHERE customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "Email"
+  if(address_1 != results[0][4]):
+    query = f"UPDATE address JOIN customer ON address.address_id=customer.address_id SET address='{address_1}' WHERE customer.customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "Address1"
+  if(address_2 != results[0][5]):
+    query = f"UPDATE address JOIN customer ON address.address_id=customer.address_id SET address2='{address_2}' WHERE customer.customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "Address2"
+  if(city != results[0][6]):
+    query = "SELECT city_id FROM city ORDER BY city_id DESC LIMIT 1;"
+    cursor.execute(query)
+    lastCityID = cursor.fetchall()[0][0]
+    query = f"INSERT INTO city VALUES ('{lastCityID+1}', '{city}', 103, NOW());"
+    cursor.execute(query)
+    query = f"UPDATE address JOIN customer ON address.address_id=customer.address_id SET city_id='{lastCityID+1}' WHERE customer.customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "City"
+  if(district != results[0][7]):
+    query = f"UPDATE address JOIN customer ON address.address_id=customer.address_id SET district='{district}' WHERE customer.customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "District"
+  if(postal_code != results[0][8]):
+    query = f"UPDATE address JOIN customer ON address.address_id=customer.address_id SET postal_code='{postal_code}' WHERE customer.customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "Postal Code"
+  if(str(phone) != results[0][9]):
+    query = f"UPDATE address JOIN customer ON address.address_id=customer.address_id SET phone='{phone}' WHERE customer.customer_id={customer_id};"
+    cursor.execute(query)
+    returnString = "" if returnString == "" else returnString + ", "
+    returnString = returnString + "Phone"
+  returnString = "There were no changes" if returnString == "" else returnString + " were changed"
+  cnx.commit()
+  cursor.close()
+  cnx.close()
+
+  return jsonify({
+    'status': returnString,
+    'customer':{
+      'first_name': first_name,
+      'last_name': last_name,
+      'email': email,
+      'address_1': address_1,
+      'address_2': address_2,
+      'city': city,
+      'district': district,
+      'postal_code': postal_code,
+      'phone': phone,
+      'customer_id': customer_id
+    }
+  })
+  # return jsonify(customer)
+
+@app.route('/delete_customer', methods=['POST'])
+def delete_customer():
+  customer = request.json
+  customer_id = customer['customer_id']
+
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = f"SELECT customer_id FROM customer WHERE customer_id={customer_id} and active=1;"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  if(len(results) == 0):
+    return jsonify("Customer Not Found")
+  query = f"UPDATE customer SET active=0 WHERE customer_id={customer_id};"
+  cursor.execute(query)
+  cnx.commit()
+  cursor.close()
+  cnx.close()
+
+  return jsonify("Customer Deleted")
 
 if __name__ == "__main__":
   app.run(debug=True)
