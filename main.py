@@ -302,7 +302,6 @@ def movie_search():
   i = 0
   while(i < resultsLen):
     if(i == resultsLen-1):
-      print("break")
       break;
     if(results[i][0] == results[i+1][0]):
       # print("pop" + str(i+1))
@@ -311,7 +310,28 @@ def movie_search():
     else:
       i += 1
   return jsonify(results)
+@app.route('/rent_movie', methods=['POST'])
+def rent_movie():
+  json = request.json
+  film_id = json['film_id']
+  customer_id = json['customer_id']
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
 
+  cursor = cnx.cursor()
+  query = f"SELECT inventory.inventory_id FROM inventory JOIN film ON film.film_id = inventory.film_id WHERE film.film_id ='{film_id}' LIMIT 1;"
+  cursor.execute(query)
+  inventory_id = cursor.fetchall()[0][0]
+  query = f"SELECT rental.rental_id FROM rental ORDER BY rental.rental_id DESC LIMIT 1;"
+  cursor.execute(query)
+  rental_id = cursor.fetchall()[0][0]
+  
+  query = f"INSERT INTO rental VALUES ('{rental_id+1}', NOW(), '{inventory_id}', '{customer_id}', NULL, 1, NOW());"
+  cursor.execute(query)
+  cnx.commit()
+  cursor.close()
+  cnx.close()
+  return jsonify("Movie Rented")
+    #INSERT INTO rental VALUES (rental_id, rental_date, inventory_id, customer_id, return_date, staff_id, last_update);
 
 if __name__ == "__main__":
   app.run(debug=True)
