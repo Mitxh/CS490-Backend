@@ -278,7 +278,7 @@ def customer_rented():
   customer_id = request.args.get('customer_id', '')
   cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
   cursor = cnx.cursor()
-  query = f"SELECT film.title, film.film_id FROM film JOIN inventory ON inventory.film_id = film.film_id JOIN rental ON rental.inventory_id = inventory.inventory_id JOIN customer ON customer.customer_id = rental.customer_id WHERE customer.customer_id = '{customer_id}';"
+  query = f"SELECT film.title, film.film_id, rental.return_date FROM film JOIN inventory ON inventory.film_id = film.film_id JOIN rental ON rental.inventory_id = inventory.inventory_id JOIN customer ON customer.customer_id = rental.customer_id WHERE customer.customer_id = '{customer_id}';"
   cursor.execute(query)
   results = cursor.fetchall()
   cursor.close()
@@ -310,6 +310,7 @@ def movie_search():
     else:
       i += 1
   return jsonify(results)
+
 @app.route('/rent_movie', methods=['POST'])
 def rent_movie():
   json = request.json
@@ -332,6 +333,24 @@ def rent_movie():
   cnx.close()
   return jsonify("Movie Rented")
     #INSERT INTO rental VALUES (rental_id, rental_date, inventory_id, customer_id, return_date, staff_id, last_update);
+
+@app.route('/return_movie', methods=['POST'])
+def return_movie():
+  json = request.json
+  film_id = json['movie_id']
+  customer_id = json['customer_id']
+
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = f"SELECT rental.rental_id, inventory.inventory_id, rental.customer_id, rental.return_date FROM rental JOIN inventory ON rental.inventory_id=inventory.inventory_id WHERE inventory.film_id={film_id} AND rental.customer_id={customer_id};"
+  cursor.execute(query)
+  rental_id = cursor.fetchall()[0][0]
+  query = f"UPDATE rental SET return_date=NOW() WHERE rental_id={rental_id};"
+  cursor.execute(query)
+  cnx.commit()
+  cursor.close()
+  cnx.close()
+  return jsonify("Movie Returned")
 
 if __name__ == "__main__":
   app.run(debug=True)
