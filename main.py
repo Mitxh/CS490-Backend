@@ -20,8 +20,7 @@ def movie_list():
   return jsonify(results)
 
 @app.route('/actors')
-def actor_list():
-  
+def actor_list(): 
   cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
   cursor = cnx.cursor()
   query = 'SELECT actor.actor_id, actor.first_name AS "First", actor.last_name AS "Last", COUNT(film_id) AS "Film Count" FROM actor INNER JOIN film_actor ON film_actor.actor_id=actor.actor_id GROUP BY actor.actor_id ORDER BY COUNT(film_id) DESC LIMIT 5;'
@@ -55,7 +54,7 @@ def customer_search():
   cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
   cursor = cnx.cursor()
   if search_term:
-    query = f"SELECT customer_id, first_name, last_name FROM customer WHERE first_name LIKE '%{search_term}%' OR last_name LIKE '%{search_term}%' OR customer_id LIKE '%{search_term}%';"
+    query = f"SELECT customer_id, first_name, last_name FROM customer WHERE active=1 AND (first_name LIKE '%{search_term}%' OR last_name LIKE '%{search_term}%' OR customer_id LIKE '%{search_term}%');"
   else:
     query = 'SELECT customer.customer_id, customer.first_name, customer.last_name FROM customer WHERE customer.active=1 ORDER BY customer.last_name;'
   cursor.execute(query)
@@ -273,6 +272,45 @@ def delete_customer():
   cnx.close()
 
   return jsonify("Customer Deleted")
+
+@app.route('/customer_rented')
+def customer_rented():
+  customer_id = request.args.get('customer_id', '')
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = f"SELECT film.title, film.film_id FROM film JOIN inventory ON inventory.film_id = film.film_id JOIN rental ON rental.inventory_id = inventory.inventory_id JOIN customer ON customer.customer_id = rental.customer_id WHERE customer.customer_id = '{customer_id}';"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+  return(jsonify(results))
+
+@app.route('/movie_search')
+def movie_search():
+  search_movie = request.args.get('search_movie', '')
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  if search_movie:
+    query = f"SELECT film.film_id, film.title, film.description, film.release_year, film.rental_rate, film.length, film.rating, film.replacement_cost FROM film JOIN film_actor ON film.film_id = film_actor.film_id JOIN actor ON actor.actor_id = film_actor.actor_id JOIN film_category ON film_category.film_id = film.film_id JOIN category ON category.category_id = film_category.category_id WHERE film.title LIKE '%{search_movie}%' OR actor.first_name LIKE '%{search_movie}%' OR actor.last_name LIKE '%{search_movie}%' OR category.name LIKE '%{search_movie}%';"
+  else:
+    query = "SELECT film.film_id, film.title, film.description, film.release_year, film.rental_rate, film.length, film.rating, film.replacement_cost FROM film JOIN film_actor ON film.film_id = film_actor.film_id JOIN actor ON actor.actor_id = film_actor.actor_id JOIN film_category ON film_category.film_id = film.film_id JOIN category ON category.category_id = film_category.category_id;"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+  resultsLen = len(results)
+  i = 0
+  while(i < resultsLen):
+    if(i == resultsLen-1):
+      print("break")
+      break;
+    if(results[i][0] == results[i+1][0]):
+      print("pop" + str(i+1))
+      results.pop(i+1)
+      resultsLen -= 1
+    else:
+      i += 1
+  return jsonify(results)
 
 if __name__ == "__main__":
   app.run(debug=True)
