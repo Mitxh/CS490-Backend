@@ -291,7 +291,7 @@ def movie_search():
   cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
   cursor = cnx.cursor()
   if search_movie:
-    query = f"SELECT film.film_id, film.title, film.description, film.release_year, film.rental_rate, film.length, film.rating, film.replacement_cost FROM film JOIN film_actor ON film.film_id = film_actor.film_id JOIN actor ON actor.actor_id = film_actor.actor_id JOIN film_category ON film_category.film_id = film.film_id JOIN category ON category.category_id = film_category.category_id WHERE film.title LIKE '%{search_movie}%' OR actor.first_name LIKE '%{search_movie}%' OR actor.last_name LIKE '%{search_movie}%' OR category.name LIKE '%{search_movie}%';"
+    query = f"SELECT film.film_id, film.title, film.description, film.release_year, film.rental_rate, film.length, film.rating, film.replacement_cost FROM film JOIN film_actor ON film.film_id = film_actor.film_id JOIN actor ON actor.actor_id = film_actor.actor_id JOIN film_category ON film_category.film_id = film.film_id JOIN category ON category.category_id = film_category.category_id WHERE (film.title LIKE '%{search_movie}%' OR actor.first_name LIKE '%{search_movie}%' OR actor.last_name LIKE '%{search_movie}%' OR category.name LIKE '%{search_movie}%') OR film.film_id = '{search_movie}';"
   else:
     query = "SELECT film.film_id, film.title, film.description, film.release_year, film.rental_rate, film.length, film.rating, film.replacement_cost FROM film JOIN film_actor ON film.film_id = film_actor.film_id JOIN actor ON actor.actor_id = film_actor.actor_id JOIN film_category ON film_category.film_id = film.film_id JOIN category ON category.category_id = film_category.category_id;"
   cursor.execute(query)
@@ -305,12 +305,13 @@ def movie_search():
       print("break")
       break;
     if(results[i][0] == results[i+1][0]):
-      print("pop" + str(i+1))
+      # print("pop" + str(i+1))
       results.pop(i+1)
       resultsLen -= 1
     else:
       i += 1
   return jsonify(results)
+
 
 if __name__ == "__main__":
   app.run(debug=True)
