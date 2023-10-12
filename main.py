@@ -352,5 +352,40 @@ def return_movie():
   cnx.close()
   return jsonify("Movie Returned")
 
+@app.route('/report_layout')
+def report_layout():
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = "SELECT customer.customer_id, customer.first_name, customer.last_name, customer.email, address.phone, film.title, rental.return_date FROM customer JOIN address ON address.address_id = customer.address_id JOIN rental ON customer.customer_id = rental.customer_id JOIN inventory ON rental.inventory_id = inventory.inventory_id JOIN film ON inventory.film_id = film.film_id ORDER BY customer.last_name;"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+  resultsLen = len(results)
+  i = 0
+  total = 0
+  returned = 0
+  while(i < resultsLen):
+    if(i == resultsLen-1):
+      break;
+    if(results[i][0] == results[i+1][0]):
+      total += 1
+      if(results[i+1][6] != None):
+        returned += 1
+      temp = list(results[i])
+      temp[5] = temp[5] + ", " + results[i+1][5]
+      results[i] = tuple(temp)
+      results.pop(i+1)
+      resultsLen -= 1
+    else:
+      temp = list(results[i])
+      temp.append((str(returned) + "/" + str(total)))
+      results[i] = tuple(temp)
+      total = 0
+      returned = 0
+      i += 1
+
+  return jsonify(results)
+
 if __name__ == "__main__":
   app.run(debug=True)
