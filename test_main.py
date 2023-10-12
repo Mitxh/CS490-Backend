@@ -1,6 +1,7 @@
 import pytest
 from main import app
 import json
+from datetime import datetime
 
 @pytest.fixture
 def client():
@@ -83,3 +84,26 @@ def test_movies(client):
   assert data[2][1] == "Ridgemont Submarine"
   assert data[3][1] == "Juggler Hardly"
   assert data[4][1] == "Scalawag Duck"
+
+# Rental Test
+def test_report_layout(client):
+  reportListRes = client.get('/report_layout')
+  assert reportListRes.status_code == 200
+  data = json.loads(reportListRes.data)
+  for i in range(len(data)):
+  # checking if their last name is in correct order
+    if(i != len(data)-1):
+      assert data[i][2] <= data[i+1][2]
+
+# Customer Rented Test
+def test_customer_rented(client):
+  for i in range(100):
+    response = client.get(f"/customer_rented?customer_id={i}")
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    for j in range(len(data)-1):
+      # print(j)
+      assert isinstance(data[j][0],str)
+      assert isinstance(data[j][1],int)
+
+  
