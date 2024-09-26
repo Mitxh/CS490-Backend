@@ -20,8 +20,7 @@ def movie_list():
   return jsonify(results)
 
 @app.route('/actors')
-def actor_list():
-  
+def actor_list(): 
   cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
   cursor = cnx.cursor()
   query = 'SELECT actor.actor_id, actor.first_name AS "First", actor.last_name AS "Last", COUNT(film_id) AS "Film Count" FROM actor INNER JOIN film_actor ON film_actor.actor_id=actor.actor_id GROUP BY actor.actor_id ORDER BY COUNT(film_id) DESC LIMIT 5;'
@@ -55,7 +54,7 @@ def customer_search():
   cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
   cursor = cnx.cursor()
   if search_term:
-    query = f"SELECT customer_id, first_name, last_name FROM customer WHERE first_name LIKE '%{search_term}%' OR last_name LIKE '%{search_term}%' OR customer_id LIKE '%{search_term}%';"
+    query = f"SELECT customer_id, first_name, last_name FROM customer WHERE active=1 AND (first_name LIKE '%{search_term}%' OR last_name LIKE '%{search_term}%' OR customer_id LIKE '%{search_term}%');"
   else:
     query = 'SELECT customer.customer_id, customer.first_name, customer.last_name FROM customer WHERE customer.active=1 ORDER BY customer.last_name;'
   cursor.execute(query)
@@ -273,6 +272,120 @@ def delete_customer():
   cnx.close()
 
   return jsonify("Customer Deleted")
+
+@app.route('/customer_rented')
+def customer_rented():
+  customer_id = request.args.get('customer_id', '')
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = f"SELECT film.title, film.film_id, rental.return_date FROM film JOIN inventory ON inventory.film_id = film.film_id JOIN rental ON rental.inventory_id = inventory.inventory_id JOIN customer ON customer.customer_id = rental.customer_id WHERE customer.customer_id = '{customer_id}';"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+  return(jsonify(results))
+
+@app.route('/movie_search')
+def movie_search():
+  search_movie = request.args.get('search_movie', '')
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  if search_movie:
+    query = f"SELECT film.film_id, film.title, film.description, film.release_year, film.rental_rate, film.length, film.rating, film.replacement_cost FROM film JOIN film_actor ON film.film_id = film_actor.film_id JOIN actor ON actor.actor_id = film_actor.actor_id JOIN film_category ON film_category.film_id = film.film_id JOIN category ON category.category_id = film_category.category_id WHERE (film.title LIKE '%{search_movie}%' OR actor.first_name LIKE '%{search_movie}%' OR actor.last_name LIKE '%{search_movie}%' OR category.name LIKE '%{search_movie}%') OR film.film_id = '{search_movie}';"
+  else:
+    query = "SELECT film.film_id, film.title, film.description, film.release_year, film.rental_rate, film.length, film.rating, film.replacement_cost FROM film JOIN film_actor ON film.film_id = film_actor.film_id JOIN actor ON actor.actor_id = film_actor.actor_id JOIN film_category ON film_category.film_id = film.film_id JOIN category ON category.category_id = film_category.category_id;"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+  resultsLen = len(results)
+  i = 0
+  while(i < resultsLen):
+    if(i == resultsLen-1):
+      break;
+    if(results[i][0] == results[i+1][0]):
+      # print("pop" + str(i+1))
+      results.pop(i+1)
+      resultsLen -= 1
+    else:
+      i += 1
+  return jsonify(results)
+
+@app.route('/rent_movie', methods=['POST'])
+def rent_movie():
+  json = request.json
+  film_id = json['film_id']
+  customer_id = json['customer_id']
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+
+  cursor = cnx.cursor()
+  query = f"SELECT inventory.inventory_id FROM inventory JOIN film ON film.film_id = inventory.film_id WHERE film.film_id ='{film_id}' LIMIT 1;"
+  cursor.execute(query)
+  inventory_id = cursor.fetchall()[0][0]
+  query = f"SELECT rental.rental_id FROM rental ORDER BY rental.rental_id DESC LIMIT 1;"
+  cursor.execute(query)
+  rental_id = cursor.fetchall()[0][0]
+  
+  query = f"INSERT INTO rental VALUES ('{rental_id+1}', NOW(), '{inventory_id}', '{customer_id}', NULL, 1, NOW());"
+  cursor.execute(query)
+  cnx.commit()
+  cursor.close()
+  cnx.close()
+  return jsonify("Movie Rented")
+    #INSERT INTO rental VALUES (rental_id, rental_date, inventory_id, customer_id, return_date, staff_id, last_update);
+
+@app.route('/return_movie', methods=['POST'])
+def return_movie():
+  json = request.json
+  film_id = json['movie_id']
+  customer_id = json['customer_id']
+
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = f"SELECT rental.rental_id, inventory.inventory_id, rental.customer_id, rental.return_date FROM rental JOIN inventory ON rental.inventory_id=inventory.inventory_id WHERE inventory.film_id={film_id} AND rental.customer_id={customer_id};"
+  cursor.execute(query)
+  rental_id = cursor.fetchall()[0][0]
+  query = f"UPDATE rental SET return_date=NOW() WHERE rental_id={rental_id};"
+  cursor.execute(query)
+  cnx.commit()
+  cursor.close()
+  cnx.close()
+  return jsonify("Movie Returned")
+
+@app.route('/report_layout')
+def report_layout():
+  cnx = mysql.connector.connect(user='root', password='Mb235957', host='localhost', database='sakila')
+  cursor = cnx.cursor()
+  query = "SELECT customer.customer_id, customer.first_name, customer.last_name, customer.email, address.phone, film.title, rental.return_date FROM customer JOIN address ON address.address_id = customer.address_id JOIN rental ON customer.customer_id = rental.customer_id JOIN inventory ON rental.inventory_id = inventory.inventory_id JOIN film ON inventory.film_id = film.film_id ORDER BY customer.last_name;"
+  cursor.execute(query)
+  results = cursor.fetchall()
+  cursor.close()
+  cnx.close()
+  resultsLen = len(results)
+  i = 0
+  total = 0
+  returned = 0
+  while(i < resultsLen):
+    if(i == resultsLen-1):
+      break;
+    if(results[i][0] == results[i+1][0]):
+      total += 1
+      if(results[i+1][6] != None):
+        returned += 1
+      temp = list(results[i])
+      temp[5] = temp[5] + ", " + results[i+1][5]
+      results[i] = tuple(temp)
+      results.pop(i+1)
+      resultsLen -= 1
+    else:
+      temp = list(results[i])
+      temp.append((str(returned) + "/" + str(total)))
+      results[i] = tuple(temp)
+      total = 0
+      returned = 0
+      i += 1
+
+  return jsonify(results)
 
 if __name__ == "__main__":
   app.run(debug=True)
